@@ -11,14 +11,18 @@ from torchdyn.core import NeuralODE
 from typing import Optional
 
 class Policy(nn.Module):
-    '''
+    r'''
     Defining the policy network architecture here using PyTorch nn.Module/Sequential
     This class returns a PyTorch model for instantiation in the BaseFeaturesExtractors
-
-    NOTE: For Physics-based environments, we model environment dynamics where the ODE takes the current state and the control input to produce the new change in state
-    Thus, the input dimension is the sum of the observation space and action space dimensions + 1 (for time)
-
+    
     NOTE: 
+    - The neural network architecture allows us to wrap a NeuralODE where the equation is represented by:
+
+    $$
+        y(t_1) = y(t_0) + \int_{t_0}^{t_1} f(y(t), t, \theta) dt
+    $$
+
+    - The function f is represented by a neural network outputting dy/dt given input (t, y(t))
     - For the ODE solver, we also use tanh() because for continuous solving we require smooth activation function for stable vector field. 
       ReLU is piecewise with discontinuous derivative so it is not desirable for NODEs.
     '''
@@ -34,12 +38,12 @@ class Policy(nn.Module):
 
         # Initialize an MLP-NODE architecture. NOTE: this can be changed for different architectures
         mlp_model = nn.Sequential(
-            DepthCat(1), #concats (time, y, a)
-            nn.Linear(obs_dim + 1, 64),
+            DepthCat(1), #concats (time, y)
+            nn.Linear(obs_dim + 1, 64), #input layer: (t, y_1, ..., y_obs_dim)
             nn.Tanh(), 
             nn.Linear(64, 64),
             nn.Tanh(),
-            nn.Linear(64, obs_dim)
+            nn.Linear(64, obs_dim) #output layer: (dy_1/dt, ..., dy_obs_dim/dt)
         )
 
         self.mlp_model = NeuralODE(
