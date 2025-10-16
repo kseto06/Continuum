@@ -8,6 +8,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import gymnasium as gym
+import pygame
+
 from stable_baselines3 import PPO, A2C, DDPG, DQN, TD3, SAC
 from sb3_contrib import RecurrentPPO
 
@@ -104,6 +106,9 @@ class SB3Agent(Agent):
             self.model_policy = "CnnPolicy"
         elif isinstance(model_arch, MlpLstmNodeExtractor):
             self.model_policy = "MlpLstmPolicy"
+            if self.sb3_class != RecurrentPPO:
+                print("WARNING: MlpLstmNodeExtractor is only compatible with RecurrentPPO, defaulting to RecurrentPPO")
+                self.sb3_class = RecurrentPPO
 
     def initialize(self) -> None:
         '''
@@ -139,6 +144,7 @@ class SB3Agent(Agent):
         Function to set up a checkpoint callback to save the model at regular intervals
         params:
         - save_frequency (int): frequency (in timesteps) to save the model
+        
         returns:
         - checkpoint_callback (CheckpointCallback): checkpoint callback to pass to the SB3 model's learn
         '''
@@ -152,7 +158,7 @@ class SB3Agent(Agent):
     
     def learn(self, log_interval: int = 1, verbose: int = 1) -> None:
         '''
-        Function to train the SB3 model
+        Void function to train the SB3 model
         params:
         - log_interval (int): interval to log the training progress
         - verbose (int): verbosity level
@@ -166,32 +172,9 @@ class SB3Agent(Agent):
             callback=self.set_checkpoint(save_frequency=self.checkpoint_interval)
         )
 
-class RecurrentPPOAgent(Agent):
-    '''
-    Defines the class for initializing a RecurrentPPO model (i.e. a PPO model with memory) for training and inference.
-    '''
-    def __init__(self, model_path: str, policy_kwargs: Dict[str, Any]):
-        '''
-        params:
-        - model_path (str): path to the pre-trained model, if None a new model will be initialized
-        - policy_kwargs (Dict[str, Any]): dictionary of keyword arguments to pass to the policy
-        '''
-        super.__init__(model_path)
-        self.lstm_states = None
-        if policy_kwargs is None and not(set(["activation_fn", "lstm_hidden_size", "net_arch", "shared_lstm", "enable_critic_lstm", "share_features_extractor"]) - set(policy_kwargs.keys())):
-            print("ERROR: Invalid policy_kwargs, defaulting to base policy_kwargs")
-            policy_kwargs = {
-                "activation_fn": nn.ReLU,
-                "lstm_hidden_size": 256, 
-                "net_arch": [dict(pi=[32, 32], vf=[32, 32])],
-                "shared_lstm": True,
-                "enable_critic_lstm": False,
-                "share_features_extractor": True,
-            }
-
 def plot_results(log_folder: str, sb3_class_name: str, env_name: str, title: str = "Learning Curve") -> None:
     '''
-    Function to plot the results of training (rewards vs. timesteps)
+    Function to plot the results of training (rewards vs. timesteps), saves the PNG plot in the log_folder
 
     params:
     - log_folder (str): folder where the results are stored
@@ -221,6 +204,9 @@ def train(agent: Agent, env: gym.Env):
     - agent (Agent): agent to be trained
     - env (gym.Env): environment to train the agent in
     '''
+    env.reset()
+    pygame.display.set_caption(f"{env.spec.id}_{agent.model_policy}_{agent.sb3_class.__name__}")
+
     agent.get_env_info(env)
     agent.learn(log_interval=1, verbose=1)
     plot_results(f"./rl-model/", agent.sb3_class.__name__, env.spec.id, title=f"{agent.sb3_class.__name__} on {env.spec.id}")

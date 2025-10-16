@@ -26,7 +26,13 @@ class Policy(nn.Module):
     - For the ODE solver, we also use tanh() because for continuous solving we require smooth activation function for stable vector field. 
       ReLU is piecewise with discontinuous derivative so it is not desirable for NODEs.
     '''
-    def __init__(self, obs_dim: int, device: Optional[str] = "cpu", solver: Optional[str] = "dopri5", sensitivity: Optional[str] = "adjoint"):
+    def __init__(
+        self, 
+        obs_space: gym.Space, 
+        device: Optional[str] = "cpu", 
+        solver: Optional[str] = "dopri5", 
+        sensitivity: Optional[str] = "adjoint",
+    ):
         '''
         Params:
         - obs_dim (int): dimension of the observation space
@@ -35,6 +41,8 @@ class Policy(nn.Module):
         - sensitivity (str, optional): sensitivity method to use (i.e. how gradients for the ODE are backpropagated), defaults to "adjoint"
         '''
         super(Policy, self).__init__()
+
+        obs_dim = np.prod(obs_space.shape)
 
         # Initialize an MLP-NODE architecture. NOTE: this can be changed for different architectures
         mlp_model = nn.Sequential(
@@ -55,10 +63,40 @@ class Policy(nn.Module):
         ).to(device)
 
         # Initialize a CNN-NODE architecture. NOTE: this can be changed for different architectures
-        self.cnn_model = None
+        cnn_model = nn.Sequential(
+            DepthCat(1),
+            nn.Conv2d(in_channels=obs_dim+1, out_channels=32, kernel_size=3, stride=1, padding=0),
+            nn.Tanh(),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=0),
+            nn.Tanh(),
+            nn.Conv2d(in_channels=32, out_channels=obs_dim, kernel_size=1, stride=1, padding=0),
+        )
+
+        self.cnn_model = NeuralODE(
+            cnn_model,
+            solver=solver,
+            sensitivity=sensitivity,
+            atol=1e-6,
+            rtol=1e-6
+        ).to(device)
 
         # Initialize an MLP-LSTM-NODE architecture. NOTE: this can be changed for different architectures
-        self.lstm_model = None
+        lstm_model = nn.Sequential(
+            DepthCat(1),
+            nn.Linear(obs_dim + 1, 64),
+            nn.Tanh(),
+            LSTMOutputExtractor(input_size=64, hidden_size=64, num_layers=1, batch_first=True),
+            nn.Tanh(),
+            nn.Linear(64, obs_dim)
+        )
+        
+        self.lstm_model = NeuralODE(
+            lstm_model,
+            solver=solver,
+            sensitivity=sensitivity,
+            atol=1e-6,
+            rtol=1e-6
+        ).to(device)
     
     def get_mlp_model(self) -> NeuralODE:
         return self.mlp_model
@@ -68,6 +106,24 @@ class Policy(nn.Module):
     
     def get_lstm_model(self) -> NeuralODE:
         return self.lstm_model
+    
+class LSTMOutputExtractor(nn.Module):
+    '''
+    Class that extracts the output from an LSTM layer for Neural ODE inputs compatibility 
+    '''
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int, batch_first: bool = True):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=batch_first
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # LSTM output => (output, (h_n, c_n))
+        output, _ = self.lstm(x)
+        return output
 
 class MlpNodeExtractor(BaseFeaturesExtractor):
     '''
@@ -77,16 +133,16 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
     def __init__(self, obs_space: gym.Space, features_dim: int = 64):
         super(MlpNodeExtractor, self).__init__(obs_space, features_dim)
         obs_dim = np.prod(obs_space.shape)
-        self.model = Policy(obs_dim=obs_dim).get_mlp_model()
+        self.model = Policy(obs_space=obs_space).get_mlp_model()
 
         # Projection layer to get the desired feature dimension
-        self.projection = nn.Sequential(
+        self.head = nn.Sequential(
             nn.Linear(obs_dim, features_dim),
             nn.ReLU()
         )
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        # return (t_eval, solution) from the NODE output
+        # returns (ODE solution, t_eval integration interval) from the NODE output
         out = self.model(obs)
 
         if isinstance(out, tuple):
@@ -98,7 +154,7 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         if sol.dim() == 3:
             sol = sol[-1]
 
-        return self.projection(sol.float())
+        return self.head(sol.float())
 
     @classmethod
     def get_policy_kwargs(cls, features_dim: int = 64) -> dict:
@@ -112,8 +168,49 @@ class CnnNodeExtractor(BaseFeaturesExtractor):
     Class that defines a CNN-NODE architecture as a feature extractor for Stable Baselines3 policies.
     - extends SB3 BaseFeaturesExtractor 
     '''
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, obs_space: gym.Space, features_dim: int = 64):
+        super(CnnNodeExtractor, self).__init__(obs_space, features_dim)
+        obs_dim = np.prod(obs_space.shape)
+        self.model = Policy(obs_space=obs_space).get_cnn_model()
+
+        # flatten dimension shape
+        with torch.no_grad():
+            sample = torch.as_tensor(obs_space.sample()[None]).float()
+            if sample.ndim == 3:
+                sample = sample.permute(0, 3, 1, 2)  #(1, C, H, W)
+                if sample.shape[1] not in (1, 3):
+                    sample = sample.permute(0, 3, 1, 2) #(1, H, W, C) -> (1, C, H, W)
+
+            out = self.model(sample)
+            B, C, H, W = out.shape
+
+        # linear feature extraction layer
+        self.feature_extractor = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(C * H * W, features_dim),
+            nn.ReLU()
+        )
+
+        # Projection layer to get the desired feature dimension
+        self.head = nn.Sequential(
+            nn.Linear(obs_dim, features_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        # returns (ODE solution, t_eval integration interval) from the NODE output
+        out = self.feature_extractor(self.model(obs))
+
+        if isinstance(out, tuple):
+            _, sol = out
+        else:
+            sol = out
+
+        # returns 3D tensor (time, batch, features), take the last step for (batch, features)
+        if sol.dim() == 3:
+            sol = sol[-1]
+
+        return self.head(sol.float())
 
     @classmethod
     def get_policy_kwargs(cls, features_dim: int = 64) -> dict:
@@ -127,8 +224,31 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
     Class that defines an MLP-LSTM-NODE architecture as a feature extractor for Stable Baselines3 policies.
     - extends SB3 BaseFeaturesExtractor 
     '''
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, obs_space: gym.Space, features_dim: int = 64):
+        super(MlpLstmNodeExtractor, self).__init__(obs_space, features_dim)
+        obs_dim = np.prod(obs_space.shape)
+        self.model = Policy(obs_space=obs_space).get_lstm_model()
+
+        # Projection layer to get the desired feature dimension
+        self.head = nn.Sequential(
+            nn.Linear(obs_dim, features_dim),
+            nn.ReLU()
+        )
+    
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        # returns (ODE solution, t_eval integration interval) from the NODE output
+        out = self.model(obs)
+
+        if isinstance(out, tuple):
+            _, sol = out
+        else:
+            sol = out
+
+        # returns 3D tensor (time, batch, features), take the last step for (batch, features)
+        if sol.dim() == 3:
+            sol = sol[-1]
+
+        return self.head(sol.float())
     
     @classmethod
     def get_policy_kwargs(cls, features_dim: int = 64) -> dict:
