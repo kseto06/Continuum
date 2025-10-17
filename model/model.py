@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict, Type
+from typing import Optional, Union, Type
 
 import torch
 from torch import nn as nn
@@ -20,6 +20,9 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.results_plotter import ts2xy, load_results
 
 from .Policies import MlpNodeExtractor, CnnNodeExtractor, MlpLstmNodeExtractor
+
+import subprocess as sp
+import atexit
 
 class Agent(ABC):
     def __init__(self, 
@@ -52,6 +55,8 @@ class Agent(ABC):
         self.num_envs = num_envs
         self.checkpoint_interval = checkpoint_interval
         self.device = device
+
+        atexit.register(self.save)
     
     def get_env_info(self, env: gym.Env):
         if isinstance(env, Monitor):
@@ -77,9 +82,17 @@ class Agent(ABC):
     def initialize(self) -> None:
         pass
 
-    def learn(self, log_interval: int, verbose: int) -> None:
+    def learn(self, log_interval: int, verbose: int, run_name: str) -> None:
         pass
-    
+
+    # Saving model on exit
+    def save(self, model: Union[BaseAlgorithm | RecurrentPPO], file_name: str) -> None:
+        '''
+        Void function to save the model to the specified path on system process exit
+        '''
+        print("\n System process exited, saving model at current timestep...")
+        model.save(f"./model/rl-model/{file_name}.zip")
+
 class SB3Agent(Agent):
     '''
     Defines the class for initializing a Stable Baselines3 model for training and inference.
@@ -116,6 +129,7 @@ class SB3Agent(Agent):
         '''
         if self.model_path is not None:
             self.model = self.sb3_class.load(self.model_path)
+            print(f"Resuming training from {self.model.num_timesteps:,} steps...")
         else:
             self.model = self.sb3_class(
                 self.model_policy,
@@ -124,8 +138,10 @@ class SB3Agent(Agent):
                 verbose=1,
                 n_steps=self.n_steps,
                 batch_size=self.batch_size,
-                ent_coef=0.01
+                ent_coef=0.01,
+                tensorboard_log="./model/rl-model/logs/",
             )
+            print("Initializing training from scratch...")
 
     def predict(self, obs: gym.spaces.Box) -> np.ndarray:
         '''
@@ -150,27 +166,44 @@ class SB3Agent(Agent):
         '''
         checkpoint_callback = CheckpointCallback(
             save_freq=save_frequency, 
-            save_path=f"./rl-model/",
+            save_path=f"./model/rl-model/",
             name_prefix=f"{self.sb3_class.__name__}_{self.env.spec.id}_checkpoint"
         )
 
         return checkpoint_callback
     
-    def learn(self, log_interval: int = 1, verbose: int = 1) -> None:
+    def learn(self, log_interval: int = 1, verbose: int = 1, run_name: str = "run1") -> None:
         '''
-        Void function to train the SB3 model
+        Void function to train the SB3 model and open Tensorboard logs 
+
         params:
         - log_interval (int): interval to log the training progress
         - verbose (int): verbosity level
         '''
         self.model.set_env(self.env)
-        self.model.verbose = verbose
-        self.model.learn(
-            total_timesteps=self.total_timesteps, 
-            log_interval=log_interval,
-            progress_bar=True,
-            callback=self.set_checkpoint(save_frequency=self.checkpoint_interval)
+        self.model.verbose = verbose   
+
+        sp.Popen(
+            ["tensorboard", "--logdir", "./model/rl-model/logs/", "--port", "6006"], 
+            stdout=sp.DEVNULL, 
+            stderr=sp.STDOUT
         )
+
+        try:
+            self.model.learn(
+                total_timesteps=self.total_timesteps, 
+                log_interval=log_interval,
+                progress_bar=True,
+                callback=self.set_checkpoint(save_frequency=self.checkpoint_interval),
+                reset_num_timesteps=False,
+                tb_log_name=f"{self.sb3_class.__name__}_{self.env.spec.id}_{run_name}"
+            )
+        except KeyboardInterrupt:
+            self.save(
+                model=self.model, 
+                file_name=f"{self.sb3_class.__name__}_{self.env.spec.id}_checkpoint_{self.model.num_timesteps}_steps"
+            )
+            print(f"[INTERRUPT] Model saved at: model/rl-model/{self.sb3_class.__name__}_{self.env.spec.id}_checkpoint_{self.model.num_timesteps}_steps")
 
 def plot_results(log_folder: str, sb3_class_name: str, env_name: str, title: str = "Learning Curve") -> None:
     '''
@@ -194,10 +227,10 @@ def plot_results(log_folder: str, sb3_class_name: str, env_name: str, title: str
     plt.ylabel("Rewards")
     plt.title(title + " Smoothed")
 
-    plt.savefig(f"{log_folder}/{sb3_class_name}-{env_name}-learning_curve.png")
+    plt.savefig(f"{log_folder}/{sb3_class_name}_{env_name}_learning-curve.png")
 
 
-def train(agent: Agent, env: gym.Env):
+def train(agent: Agent, env: gym.Env, run_name: str = "run0") -> None:
     '''
     Function to train a general agent in a given env
     params:
@@ -208,7 +241,7 @@ def train(agent: Agent, env: gym.Env):
     pygame.display.set_caption(f"{env.spec.id}_{agent.model_policy}_{agent.sb3_class.__name__}")
 
     agent.get_env_info(env)
-    agent.learn(log_interval=1, verbose=1)
-    plot_results(f"./rl-model/", agent.sb3_class.__name__, env.spec.id, title=f"{agent.sb3_class.__name__} on {env.spec.id}")
+    agent.learn(log_interval=1, verbose=1, run_name=run_name)
+    plot_results(f"./model/rl-model/", agent.sb3_class.__name__, env.spec.id, title=f"{agent.sb3_class.__name__} on {env.spec.id}")
 
     env.close()
