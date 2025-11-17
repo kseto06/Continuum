@@ -32,6 +32,8 @@ class Policy(nn.Module):
         device: Optional[str] = "cpu", 
         solver: Optional[str] = "dopri5", 
         sensitivity: Optional[str] = "adjoint",
+        latent_dim: int = 64,
+        features_dim: int = 64,
         mlp_model: Optional[nn.Sequential] = None,
         cnn_model: Optional[nn.Sequential] = None,
         lstm_model: Optional[nn.Sequential] = None
@@ -54,11 +56,11 @@ class Policy(nn.Module):
             print("No MLP model provided, using default architecture")
             mlp_model = nn.Sequential(
                 DepthCat(1), #concats (time, y)
-                nn.Linear(obs_dim + 1, 64), #input layer: (t, y_1, ..., y_obs_dim)
+                nn.Linear(latent_dim + 1, features_dim), #input layer: (t, y_1, ..., y_obs_dim)
                 nn.Tanh(), 
-                nn.Linear(64, 64),
+                nn.Linear(features_dim, features_dim),
                 nn.Tanh(),
-                nn.Linear(64, obs_dim) #output layer: (dy_1/dt, ..., dy_obs_dim/dt)
+                nn.Linear(features_dim, latent_dim) #output layer: (dy_1/dt, ..., dy_obs_dim/dt)
             )
 
         self.mlp_model = NeuralODE(
@@ -74,11 +76,11 @@ class Policy(nn.Module):
             print("No CNN model provided, using default architecture")
             cnn_model = nn.Sequential(
                 DepthCat(1),
-                nn.Conv2d(in_channels=obs_dim+1, out_channels=32, kernel_size=3, stride=1, padding=0),
+                nn.Conv2d(in_channels=latent_dim+1, out_channels=32, kernel_size=3, stride=1, padding=0),
                 nn.Tanh(),
                 nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=0),
                 nn.Tanh(),
-                nn.Conv2d(in_channels=32, out_channels=obs_dim, kernel_size=1, stride=1, padding=0),
+                nn.Conv2d(in_channels=32, out_channels=latent_dim, kernel_size=1, stride=1, padding=0),
             )
 
         self.cnn_model = NeuralODE(
@@ -94,11 +96,11 @@ class Policy(nn.Module):
             print("No MLP-LSTM model provided, using default architecture")
             lstm_model = nn.Sequential(
                 DepthCat(1),
-                nn.Linear(obs_dim + 1, 64),
+                nn.Linear(latent_dim + 1, features_dim),
                 nn.Tanh(),
-                LSTMOutputExtractor(input_size=64, hidden_size=64, num_layers=1, batch_first=True),
+                LSTMOutputExtractor(input_size=features_dim, hidden_size=features_dim, num_layers=1, batch_first=True),
                 nn.Tanh(),
-                nn.Linear(64, obs_dim)
+                nn.Linear(features_dim, latent_dim)
             )
         
         self.lstm_model = NeuralODE(
@@ -117,38 +119,6 @@ class Policy(nn.Module):
     
     def get_lstm_model(self) -> NeuralODE:
         return self.lstm_model
-    
-class LSTMOutputExtractor(nn.Module):
-    '''
-    Class that extracts the output from an LSTM layer for Neural ODE inputs compatibility 
-    '''
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int, batch_first: bool = True):
-        '''
-        Params:
-        - input_size (int): number of expected features in the input x
-        - hidden_size (int): number of features in the hidden state h
-        - num_layers (int): number of recurrent layers
-        - batch_first (bool): if True, then the input and output tensors are provided as
-        '''
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=batch_first
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        '''
-        Params:
-        - x (torch.Tensor): input tensor of shape (batch, seq_len, input_size
-
-        Returns:
-        - output (torch.Tensor): output tensor of shape (batch, seq_len, hidden_size
-        '''
-        # LSTM output => (output, (h_n, c_n))
-        output, _ = self.lstm(x)
-        return output
 
 class MlpNodeExtractor(BaseFeaturesExtractor):
     '''
@@ -158,7 +128,9 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
     def __init__(
         self, 
         obs_space: gym.Space, 
-        features_dim: int = 64, 
+        features_dim: int = 64,
+        latent_dim: int = 64,
+        output_dim: int = 32, 
         device: Optional[str] = "cpu", 
         solver: Optional[str] = "dopri5", 
         sensitivity: Optional[str] = "adjoint",
@@ -173,21 +145,33 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         - sensitivity (str, optional): sensitivity method to use (i.e. how gradients for the ODE are backpropagated), defaults to "adjoint"
         - network_arch (nn.Sequential, optional): custom MLP architecture to use for the NODE, defaults to default network architecture in Policy class
         '''
-        super(MlpNodeExtractor, self).__init__(obs_space, features_dim)
+        super(MlpNodeExtractor, self).__init__(obs_space, output_dim)
+        #super(MlpNodeExtractor, self).__init__(obs_space, features_dim)
         obs_dim = np.prod(obs_space.shape)
+
+        self.encoder = nn.Sequential(
+            nn.Linear(obs_dim, latent_dim),
+            nn.Tanh()
+        )
+
         self.model = Policy(
             obs_space=obs_space, 
             device=device, 
             solver=solver, 
             sensitivity=sensitivity, 
+            latent_dim=latent_dim,
+            features_dim=features_dim,
             mlp_model=network_arch
         ).get_mlp_model()
 
         # Projection layer to get the desired feature dimension
         self.head = nn.Sequential(
-            nn.Linear(obs_dim, features_dim),
-            nn.ReLU()
+            nn.Linear(latent_dim, output_dim),
+            #nn.Linear(obs_dim, features_dim),
+            #nn.ReLU()
         )
+
+        self.solver = solver
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         '''
@@ -197,8 +181,9 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         Returns:
         - features (torch.Tensor): extracted feature tensor
         '''
+        out = self.encoder(obs)
         # returns (ODE solution, t_eval integration interval) from the NODE output
-        out = self.model(obs)
+        out = self.model(out)
 
         if isinstance(out, tuple):
             _, sol = out
@@ -212,7 +197,7 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         return self.head(sol.float())
 
     @classmethod
-    def get_policy_kwargs(cls, features_dim: int = 64) -> dict:
+    def get_policy_kwargs(cls, features_dim: int = 64, output_dim: int = 32, latent_dim: int = 64) -> dict:
         '''
         Params:
         - features_dim (int): dimension of the features extracted
@@ -222,7 +207,8 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         '''
         return dict(
             features_extractor_class=cls,
-            features_extractor_kwargs=dict(features_dim=features_dim)
+            #features_extractor_kwargs=dict(features_dim=features_dim)
+            features_extractor_kwargs=dict(features_dim=features_dim, output_dim=output_dim, latent_dim=latent_dim)
         )
 
 class CnnNodeExtractor(BaseFeaturesExtractor):
@@ -282,6 +268,8 @@ class CnnNodeExtractor(BaseFeaturesExtractor):
             nn.ReLU()
         )
 
+        self.solver = solver
+
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         '''
         Params:
@@ -327,6 +315,8 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         self, 
         obs_space: gym.Space, 
         features_dim: int = 64, 
+        latent_dim: int = 64,
+        output_dim: int = 32, 
         device: Optional[str] = "cpu", 
         solver: Optional[str] = "dopri5", 
         sensitivity: Optional[str] = "adjoint",
@@ -341,21 +331,32 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         - sensitivity (str, optional): sensitivity method to use (i.e. how gradients for the ODE are backpropagated), defaults to "adjoint"
         - network_arch (nn.Sequential, optional): custom MLP architecture to use for the NODE, defaults to default network architecture in Policy class
         '''
-        super(MlpLstmNodeExtractor, self).__init__(obs_space, features_dim)
+        super(MlpLstmNodeExtractor, self).__init__(obs_space, output_dim)
         obs_dim = np.prod(obs_space.shape)
+
+        self.encoder = nn.Sequential(
+            nn.Linear(obs_dim, latent_dim),
+            nn.Tanh()
+        )
+
         self.model = Policy(
-            obs_space=obs_space,
-            device=device,
-            solver=solver,
-            sensitivity=sensitivity,
-            lstm_model=network_arch
-        ).get_lstm_model()
+            obs_space=obs_space, 
+            device=device, 
+            solver=solver, 
+            sensitivity=sensitivity, 
+            latent_dim=latent_dim,
+            features_dim=features_dim,
+            mlp_model=network_arch
+        ).get_mlp_model()
 
         # Projection layer to get the desired feature dimension
         self.head = nn.Sequential(
-            nn.Linear(obs_dim, features_dim),
-            nn.ReLU()
+            nn.Linear(latent_dim, output_dim),
+            #nn.Linear(obs_dim, features_dim),
+            #nn.ReLU()
         )
+
+        self.solver = solver
     
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         '''
@@ -365,8 +366,9 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         Returns:
         - features (torch.Tensor): extracted feature tensor
         '''
+        out = self.encoder(obs)
         # returns (ODE solution, t_eval integration interval) from the NODE output
-        out = self.model(obs)
+        out = self.model(out)
 
         if isinstance(out, tuple):
             _, sol = out
@@ -380,7 +382,7 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         return self.head(sol.float())
     
     @classmethod
-    def get_policy_kwargs(cls, features_dim: int = 64) -> dict:
+    def get_policy_kwargs(cls, features_dim: int = 64, output_dim: int = 32, latent_dim: int = 64) -> dict:
         '''
         Params:
         - features_dim (int): dimension of the features extracted
@@ -390,5 +392,37 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         '''
         return dict(
             features_extractor_class=cls,
-            features_extractor_kwargs=dict(features_dim=features_dim)
+            features_extractor_kwargs=dict(features_dim=features_dim, output_dim=output_dim, latent_dim=latent_dim)
         )
+    
+class LSTMOutputExtractor(nn.Module):
+    '''
+    Class that extracts the output from an LSTM layer for Neural ODE inputs compatibility 
+    '''
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int, batch_first: bool = True):
+        '''
+        Params:
+        - input_size (int): number of expected features in the input x
+        - hidden_size (int): number of features in the hidden state h
+        - num_layers (int): number of recurrent layers
+        - batch_first (bool): if True, then the input and output tensors are provided as
+        '''
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=batch_first
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        '''
+        Params:
+        - x (torch.Tensor): input tensor of shape (batch, seq_len, input_size
+
+        Returns:
+        - output (torch.Tensor): output tensor of shape (batch, seq_len, hidden_size
+        '''
+        # LSTM output => (output, (h_n, c_n))
+        output, _ = self.lstm(x)
+        return output
