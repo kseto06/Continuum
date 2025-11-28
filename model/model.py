@@ -35,11 +35,12 @@ class CheckpointCallback(BaseCallback):
     - save_path (str): path to save the model
     - verbose (int): verbosity level
     '''
-    def __init__(self, save_freq: int, save_path: str, name_prefix: str, verbose: int = 1):
+    def __init__(self, env: Union[DummyVecEnv | SubprocVecEnv | gym.Env], save_freq: int, save_path: str, name_prefix: str, verbose: int = 1):
         super().__init__(verbose)
         self.save_frequency = save_freq 
         self.save_path = save_path
         self.name_prefix = name_prefix
+        self.env = env
 
         os.makedirs(save_path, exist_ok=True)
 
@@ -47,9 +48,17 @@ class CheckpointCallback(BaseCallback):
         if self.num_timesteps % self.save_frequency == 0:
             file_path = os.path.join(
                 self.save_path,
-                f"{self.name_prefix}_{self.num_timesteps}.zip"
+                f"{self.name_prefix}_{self.num_timesteps}_steps.zip"
             )
             self.model.save(file_path)
+
+            if isinstance(self.env, VecNormalize):
+                self.env.save(
+                    save_path=os.path.join(
+                        self.save_path,
+                        f"{self.name_prefix}_{self.num_timesteps}_vecnormalize.pkl"
+                    )
+                )
 
         return True
 
@@ -78,6 +87,7 @@ class Agent(ABC):
         if env_name is None:
             raise Exception("Input a valid Gym environment name for initialization.")
 
+        self.model: Optional[BaseAlgorithm | RecurrentPPO] = None
         self.model_path: Optional[str] = model_path
         self.total_timesteps = total_timesteps
         self.n_steps = n_steps
@@ -86,6 +96,7 @@ class Agent(ABC):
         self.checkpoint_interval = checkpoint_interval
         self.device = device   
         self.env_name = env_name
+        self.env_id = None
 
         atexit.register(self.save)
     
@@ -122,12 +133,11 @@ class Agent(ABC):
         pass
 
     # Saving model on exit
-    def save(self, model: Union[BaseAlgorithm | RecurrentPPO], file_name: str) -> None:
+    def save(self) -> None:
         '''
         Void function to save the model to the specified path on system process exit
         '''
-        print("\n System process exited, saving model at current timestep...")
-        model.save(f"./model/rl-model/{file_name}.zip")
+        pass
 
 class SB3NodeAgent(Agent):
     '''
@@ -178,10 +188,12 @@ class SB3NodeAgent(Agent):
         if self.model_path is not None:
             #Loading in base model path
             try:
-                self.model = self.sb3_class.load(self.model_path)
+                self.model = self.sb3_class.load(self.model_path, env=self.env, device=self.device)
+                self.env = self.model.get_env()
             #Loading in pretrained model trained on one env for SubprocEnv
             except AssertionError:
-                self.model = self.sb3_class.load(self.model_path, env=self.env)
+                self.model = self.sb3_class.load(self.model_path, env=self.env, device=self.device)
+                self.env = self.model.get_env()
 
             print(f"Resuming training from {self.model.num_timesteps:,} steps...")
         else:
@@ -219,6 +231,7 @@ class SB3NodeAgent(Agent):
         - checkpoint_callback (CheckpointCallback): checkpoint callback to pass to the SB3 model's learn
         '''
         checkpoint_callback = CheckpointCallback(
+            env=self.env,
             save_freq=save_frequency, 
             save_path=f"./model/rl-model/",
             name_prefix=f"NODE-{self.sb3_class.__name__}_{self.model_arch.solver}_{self.env_id}_checkpoint"
@@ -251,6 +264,19 @@ class SB3NodeAgent(Agent):
 
         return eval_callback
     
+    def save(self) -> None:
+        '''
+        Void function to save the model to the specified path on system process exit
+        '''
+        print("\n System process exited, saving model at current timestep...")
+        file_name = f"NODE-{self.sb3_class.__name__}_{self.model_arch.solver}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps"
+
+        self.model.save(f"./model/rl-model/{file_name}.zip")
+        if isinstance(self.env, VecNormalize):
+            self.env.save(
+                save_path=f"./model/rl-model/{file_name}_vecnormalize.pkl"
+            )
+    
     def learn(self, log_interval: int = 1, verbose: int = 1, run_name: str = "run1") -> None:
         '''
         Void function to train the SB3 model and open Tensorboard logs 
@@ -259,7 +285,7 @@ class SB3NodeAgent(Agent):
         - log_interval (int): interval to log the training progress
         - verbose (int): verbosity level
         '''
-        self.model.set_env(self.env)
+        # self.model.set_env(self.env)
         self.model.verbose = verbose   
 
         sp.Popen(
@@ -278,10 +304,7 @@ class SB3NodeAgent(Agent):
                 tb_log_name=f"NODE-{self.sb3_class.__name__}_{self.env_id}_{run_name}"
             )
         except KeyboardInterrupt:
-            self.save(
-                model=self.model, 
-                file_name=f"NODE-{self.sb3_class.__name__}_{self.model_arch.solver}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps"
-            )
+            self.save()
             print(f"[INTERRUPT] Model saved at: model/rl-model/NODE-{self.sb3_class.__name__}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps")
 
 class SB3Agent(Agent):
@@ -326,10 +349,12 @@ class SB3Agent(Agent):
         if self.model_path is not None:
             #Loading in base model path
             try:
-                self.model = self.sb3_class.load(self.model_path)
+                self.model = self.sb3_class.load(self.model_path, env=self.env, device=self.device)
+                self.env = self.model.get_env()
             #Loading in pretrained model trained on one env for SubprocEnv
             except AssertionError:
-                self.model = self.sb3_class.load(self.model_path, env=self.env)
+                self.model = self.sb3_class.load(self.model_path, env=self.env, device=self.device)
+                self.env = self.model.get_env()
             print(f"Resuming training from {self.model.num_timesteps:,} steps...")
         else:
             self.model = self.sb3_class(
@@ -366,12 +391,51 @@ class SB3Agent(Agent):
         - checkpoint_callback (CheckpointCallback): checkpoint callback to pass to the SB3 model's learn
         '''
         checkpoint_callback = CheckpointCallback(
+            env=self.env,
             save_freq=save_frequency, 
             save_path=f"./model/rl-model/",
-            name_prefix=f"{self.sb3_class.__name__}_{self.env_id}_checkpoint"
+            name_prefix=f"NODE-{self.sb3_class.__name__}_{self.model_arch.solver}_{self.env_id}_checkpoint"
         )
 
         return checkpoint_callback
+    
+    def set_evaluation(self) -> EvalCallback:
+        '''
+        Function to set up an evaluation callback to evaluate the model at regular intervals
+        returns:
+        - eval_callback (EvalCallback): evaluation callback to pass to the SB3 model's learn
+        '''
+        eval_env = VecNormalize(
+            DummyVecEnv([lambda: gym.make(self.env_id)]), 
+            norm_obs=True, 
+            norm_reward=False, 
+            training=False,
+        )
+
+        eval_callback = EvalCallback(
+            eval_env,
+            best_model_save_path=f"./model/rl-model/",
+            log_path=f"./model/rl-model/",
+            eval_freq=10_000,
+            n_eval_episodes=5,
+            deterministic=True,
+            render=False
+        )
+
+        return eval_callback
+    
+    def save(self) -> None:
+        '''
+        Void function to save the model to the specified path on system process exit
+        '''
+        print("\n System process exited, saving model at current timestep...")
+        file_name = f"{self.sb3_class.__name__}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps"
+
+        self.model.save(f"./model/rl-model/{file_name}.zip")
+        if isinstance(self.env, VecNormalize):
+            self.env.save(
+                save_path=f"./model/rl-model/{file_name}_vecnormalize.pkl"
+            )
     
     def learn(self, log_interval: int = 1, verbose: int = 1, run_name: str = "run1") -> None:
         '''
@@ -381,7 +445,7 @@ class SB3Agent(Agent):
         - log_interval (int): interval to log the training progress
         - verbose (int): verbosity level
         '''
-        self.model.set_env(self.env)
+        # self.model.set_env(self.env)
         self.model.verbose = verbose   
 
         sp.Popen(
@@ -395,18 +459,15 @@ class SB3Agent(Agent):
                 total_timesteps=self.total_timesteps, 
                 log_interval=log_interval,
                 progress_bar=True,
-                callback=self.set_checkpoint(save_frequency=self.checkpoint_interval),
+                callback=[self.set_evaluation(), self.set_checkpoint(save_frequency=self.checkpoint_interval)],
                 reset_num_timesteps=False,
                 tb_log_name=f"{self.sb3_class.__name__}_{self.env_id}_{run_name}"
             )
         except KeyboardInterrupt:
-            self.save(
-                model=self.model, 
-                file_name=f"{self.sb3_class.__name__}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps"
-            )
+            self.save()
             print(f"[INTERRUPT] Model saved at: model/rl-model/{self.sb3_class.__name__}_{self.env_id}_checkpoint_{self.model.num_timesteps}_steps")
 
-
+@DeprecationWarning
 def plot_results(log_folder: str, sb3_class_name: str, solver_name: str, env_name: str, title: str = "Learning Curve") -> None:
     '''
     Function to plot the results of training (rewards vs. timesteps), saves the PNG plot in the log_folder
@@ -439,19 +500,17 @@ def train(agent: Agent, env: gym.Env, run_name: str = "run0") -> None:
     - env (gym.Env): environment to train the agent in
     - run_name (str): name of the training run
     '''
-    env.reset()
-    agent.get_env_info(env)
-    env_id = agent.env_id
-    pygame.display.set_caption(f"{env_id}_{getattr(agent, 'model_policy', 'Unknown')}_{agent.sb3_class.__name__}")
-    
-    agent.learn(log_interval=1, verbose=1, run_name=run_name)
+    try:
+        env.reset()
+        agent.get_env_info(env)
+        env_id = agent.env_id
+        pygame.display.set_caption(f"{env_id}_{getattr(agent, 'model_policy', 'Unknown')}_{agent.sb3_class.__name__}")
+        
+        agent.learn(log_interval=1, verbose=1, run_name=run_name)
 
-    model_arch = getattr(agent, "model_arch", None)
-    if model_arch is not None and isinstance(model_arch, BaseFeaturesExtractor):
-        solver_name = getattr(model_arch, "solver", type(model_arch).__name__)
-    else:
-        solver_name = "default"
-
-    plot_results(f"./model/rl-model/", agent.sb3_class.__name__, solver_name, env_id, title=f"{agent.sb3_class.__name__} on {env_id}")
-
-    env.close()
+    # close to stop broken pipe error
+    finally:
+        try:
+            env.close()
+        except (BrokenPipeError, EOFError):
+            pass

@@ -168,7 +168,7 @@ class MlpNodeExtractor(BaseFeaturesExtractor):
         self.head = nn.Sequential(
             nn.Linear(latent_dim, output_dim),
             #nn.Linear(obs_dim, features_dim),
-            #nn.ReLU()
+            nn.ReLU()
         )
 
         self.solver = solver
@@ -353,7 +353,7 @@ class MlpLstmNodeExtractor(BaseFeaturesExtractor):
         self.head = nn.Sequential(
             nn.Linear(latent_dim, output_dim),
             #nn.Linear(obs_dim, features_dim),
-            #nn.ReLU()
+            nn.ReLU()
         )
 
         self.solver = solver
