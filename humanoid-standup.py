@@ -9,7 +9,7 @@ import mujoco
 import sys
 
 '''
-Running the code requires the file name and a solver parameter (String) for the input
+Running the code requires the file name, solver parameter (String), total_timesteps parameter (int), checkpoint_interval (int) for the input
 
 `python humanoid-standup.py <solver> <total_timesteps> <checkpoint_interval>`
 '''
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     network_arch = None
     solver = sys.argv[1]
     '''
-    This file trains in the Mujoco humanoid env:
+    This file trains in the Mujoco HumanoidStandup env:
     - For training, use render_mode=None to save computational resources
     - For inference, use render_mode=human to visualize the env
     '''

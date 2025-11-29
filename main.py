@@ -1,19 +1,45 @@
 from model.model import train, SB3NodeAgent, MlpNodeExtractor, CnnNodeExtractor, MlpLstmNodeExtractor
 from stable_baselines3 import PPO, SAC
-from stable_baselines3.common.vec_env import VecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 from stable_baselines3.common.env_util import make_vec_env
 import gymnasium as gym
 import sys
 
 '''
-Running the code requires the file name and a solver parameter (String) for the input
+Running the code requires the file name, solver parameter (String), total_timesteps parameter (int), checkpoint_interval (int) for the input
 
 `python main.py <solver> <total_timesteps> <checkpoint_interval>`
 '''
 
 if __name__ == "__main__":
-    '''Possible classic control envs to use are:'''
-    # CartPole-v1, MountainCar-v0/MountainCarContinuous-v0, Acrobot-v1, Pendulum-v1, LunarLander-v2
+    '''
+    This file trains in an arbituary Gym/Mujoco env. 
+    - For training, use render_mode=None to save computational resources
+    - For inference, use render_mode=human to visualize the env
+    '''
+    
+    '''
+    Set the environment name here.
+    Possible ClassicControl/Box2D/Mujoco envs to use that are physics-based are:
+    - Classic Control: CartPole-v1, MountainCar-v0/MountainCarContinuous-v0, Acrobot-v1, Pendulum-v1, LunarLander-v2
+    - Box2D: LunarLander-v3, BipedalWalker-v3
+    - Mujoco: HalfCheetah-v5, Hopper-v5, Walker2d-v5, Ant-v5, Humanoid-v5, HumanoidStandup-v5, Swimmer-v5, Reacher-v5, InvertedPendulum-v5, InvertedDoublePendulum-v5
+    '''
+    env_name = "HumanoidStandup-v5"
+
+    '''
+    make_vec_env and VecNormalize are Gym functions to create vectorized environments and normalize observations/rewards. This allows for faster, efficient, stable training of agents.
+    VecEnv parameters can be changed in the initialization of the environment.
+    NOTE:
+    - If training from scratch, initialize a VecNormalize wrapper. For example:
+        env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
+    - If resuming training from a checkpoint, load the VecNormalize wrapper from the saved file. For example:
+        env = VecNormalize.load("<vec_normalize_pkl_path>", env)
+    '''
+    env = make_vec_env(env_name, n_envs=16, vec_env_cls=SubprocVecEnv)
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
+    # env = VecNormalize.load("<path>", env)
+
     env_name = "LunarLander-v3"
     env = gym.make(env_name, continuous=True, gravity=-10.0, enable_wind=True, wind_power=15.0, turbulence_power=1.5)
 
