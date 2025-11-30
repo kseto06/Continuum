@@ -26,6 +26,7 @@ if __name__ == "__main__":
     - Mujoco: HalfCheetah-v5, Hopper-v5, Walker2d-v5, Ant-v5, Humanoid-v5, HumanoidStandup-v5, Swimmer-v5, Reacher-v5, InvertedPendulum-v5, InvertedDoublePendulum-v5
     '''
     env_name = "HumanoidStandup-v5"
+    env = gym.make(env_name, continuous=True, gravity=-10.0, enable_wind=True, wind_power=15.0, turbulence_power=1.5)
 
     '''
     make_vec_env and VecNormalize are Gym functions to create vectorized environments and normalize observations/rewards. This allows for faster, efficient, stable training of agents.
@@ -39,9 +40,6 @@ if __name__ == "__main__":
     env = make_vec_env(env_name, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
     # env = VecNormalize.load("<path>", env)
-
-    env_name = "LunarLander-v3"
-    env = gym.make(env_name, continuous=True, gravity=-10.0, enable_wind=True, wind_power=15.0, turbulence_power=1.5)
 
     network_arch = None
     solver = sys.argv[1]

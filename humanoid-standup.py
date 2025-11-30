@@ -81,4 +81,4 @@ if __name__ == "__main__":
     sb3_class = PPO
     model_path = None
     agent = SB3NodeAgent(env_name=env_name, sb3_class=sb3_class, model_path=model_path, model_arch=model_arch, total_timesteps=int(sys.argv[2]), checkpoint_interval=int(sys.argv[3]))
-    train(agent, env, run_name=f"{env_name}-{sb3_class.__name__}-node-{solver}-parallelized-10Msteps")
+    train(agent, env, run_name=f"{env_name}-{sb3_class.__name__}-node-{solver}-parallelized")
