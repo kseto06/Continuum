@@ -60,7 +60,8 @@ class Policy(nn.Module):
                 nn.Tanh(), 
                 nn.Linear(features_dim, features_dim),
                 nn.Tanh(),
-                nn.Linear(features_dim, latent_dim) #output layer: (dy_1/dt, ..., dy_obs_dim/dt)
+                nn.Linear(features_dim, latent_dim), #output layer: (dy_1/dt, ..., dy_obs_dim/dt)
+                nn.Tanh()
             )
 
         self.mlp_model = NeuralODE(
@@ -81,6 +82,7 @@ class Policy(nn.Module):
                 nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=0),
                 nn.Tanh(),
                 nn.Conv2d(in_channels=32, out_channels=latent_dim, kernel_size=1, stride=1, padding=0),
+                nn.Tanh()
             )
 
         self.cnn_model = NeuralODE(
@@ -100,7 +102,8 @@ class Policy(nn.Module):
                 nn.Tanh(),
                 LSTMOutputExtractor(input_size=features_dim, hidden_size=features_dim, num_layers=1, batch_first=True),
                 nn.Tanh(),
-                nn.Linear(features_dim, latent_dim)
+                nn.Linear(features_dim, latent_dim),
+                nn.Tanh()
             )
         
         self.lstm_model = NeuralODE(

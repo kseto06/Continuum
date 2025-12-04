@@ -33,8 +33,8 @@ if __name__ == "__main__":
     '''
     env_name = "HumanoidStandup-v5"
     env = make_vec_env(env_name, n_envs=16, vec_env_cls=SubprocVecEnv)
-    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
-    # env = VecNormalize.load("<path>", env)
+    # env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
+    env = VecNormalize.load("model/rl-model/standup-vectorized/NODE-PPO_rk4_HumanoidStandup-v5_checkpoint_10027008_steps_vecnormalize.pkl", env)
 
     '''
     # NOTE: 
@@ -49,7 +49,8 @@ if __name__ == "__main__":
         nn.Tanh(),
         nn.Linear(features_dim, 256),
         nn.Tanh(),
-        nn.Linear(256, latent_dim)
+        nn.Linear(256, latent_dim),
+        nn.Tanh()
     )
 
     '''
@@ -79,6 +80,6 @@ if __name__ == "__main__":
     agent = SB3Agent(env_name=env_name, sb3_class=PPO, model_path=f"model/rl-model/{<model name>}", model_arch=None)
     '''
     sb3_class = PPO
-    model_path = None
+    model_path = "model/rl-model/standup-vectorized/NODE-PPO_rk4_HumanoidStandup-v5_checkpoint_10027008_steps.zip"
     agent = SB3NodeAgent(env_name=env_name, sb3_class=sb3_class, model_path=model_path, model_arch=model_arch, total_timesteps=int(sys.argv[2]), checkpoint_interval=int(sys.argv[3]))
     train(agent, env, run_name=f"{env_name}-{sb3_class.__name__}-node-{solver}-parallelized")

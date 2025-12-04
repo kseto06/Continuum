@@ -50,7 +50,8 @@ if __name__ == "__main__":
         nn.Tanh(),
         nn.Linear(features_dim, 256),
         nn.Tanh(),
-        nn.Linear(256, latent_dim)
+        nn.Linear(256, latent_dim),
+        nn.Tanh()
     )
 
     '''
