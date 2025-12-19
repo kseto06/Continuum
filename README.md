@@ -98,17 +98,17 @@ Follow the instructions in `main.py` for setting up training:
     
 ### Step 4: Run Inference
 
-In `runner.py`:
+In `inference.py`:
 1. Set the Gym/MuJoCo environment name to run inference on:
     ```python
     env_name = "<env_name>"
     ```
-2. Set the `.pkl` path and the model's path `.zip`:
+2. Set the `.pkl` path and the model's path `.zip` to load the model:
     ```python
     vec_path = "<path_to_pkl>"
     model_path = "<path_to_model>"
     ```
 3. Run the file in a terminal command:
     ```sh
-    python runner.py
+    python inference.py
     ```
