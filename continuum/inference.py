@@ -11,7 +11,7 @@ Running the code requires only the file name, however ensure that the model path
 '''
 Set the Gym/MuJoCo environment name to run inference on:
 '''
-env_name = "Ant-v5"
+env_name = "Humanoid-v5"
 
 def make_env():
     return gym.make(env_name, render_mode="human")
@@ -20,9 +20,10 @@ venv = DummyVecEnv([make_env])
 
 '''
 Set the `.pkl` path and the model's path `.zip` to load the model:
+The default paths below are set to the pretrained Humanoid-v5 model files provided. 
 '''
-vec_path = "model/rl-model/ant/NODE-PPO_rk4_Ant-v5_checkpoint_30048256_steps_vecnormalize.pkl"
-model_path = "model/rl-model/ant/NODE-PPO_rk4_Ant-v5_checkpoint_30048256_steps.zip"
+vec_path = "model/rl-model/humanoid-vectorized/NODE-PPO_rk4_Humanoid-v5_checkpoint_15007744_steps_vecnormalize.pkl"
+model_path = "model/rl-model/humanoid-vectorized/NODE-PPO_rk4_Humanoid-v5_checkpoint_15007744_steps.zip"
 
 vec_env = VecNormalize.load(vec_path, venv)
 vec_env.training = False
