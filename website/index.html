@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Continuum: A Dimension-Agnostic Neural ODE Deep Reinforcement Learning Framework for Physics-Based Environments">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuum</title>
+
+    <link href="fonts.googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="./static/css/styles.css">
+    <link rel="stylesheet" href="./static/css/bulma.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+    <script src="./static/js/bulma-carousel.min.js"></script>
+    <script src="./static/js/bulma-slider.min.js"></script>
+    <script src="./static/js/index.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        bulmaCarousel.attach('#results-carousel', {
+            slidesToScroll: 1,
+            slidesToShow: 1,
+            infinite: true,
+            autoplay: false,
+        });
+    });
+    </script>
+</head>
+
+<body>
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+
+                <!-- title -->
+                <div class="columns is-centered">
+                    <div class="column has-text-centered">
+                        <h1 class="title is-2 publication-title">Continuum: A Dimension-Agnostic Neural ODE Deep Reinforcement Learning Framework for Physics-Based Environments</h1>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- author list -->
+                <div class="is-size-6 publication-authors">
+                <span class="author-block" style="font-style: normal; font-size: 1.4em;">
+                    <a href="https://kseto06.github.io/">Kaden Seto<sup>1</sup></a>,
+                </span>
+                <span class="author-block" style="font-style: normal; font-size: 1.4em;">
+                    <a href="https://ryan-qian.vercel.app/">Ryan Qian<sup>1</sup></a>,
+                </span>
+                <span class="author-block" style="font-style: normal; font-size: 1.4em;">
+                    <a href="https://github.com/Kane-Pan">Kane Pan<sup>1</sup></a>
+                </span>
+                </div>
+
+                <!-- university label -->
+                <div class="is-size-6 publication-authors">
+                    <span class="author-block" style="font-style: normal; font-size: 1.3em;">
+                        <sup>1 </sup>University of Toronto
+                    </span>
+                    <br>
+                </div>
+
+                <!-- links -->
+                <div class="column has-text-centered">
+                    <div class="publication-links">
+                    <!-- PDF Link -->
+                    <span class="link-block">
+                        <a href="https://www.overleaf.com/read/tkcqqkkqmwnv#621be3" class="external-link button is-normal is-rounded is-dark">
+                        <span class="icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </span>
+                        <span class="teaser" style="font-weight: 400;">Paper</span>
+                        </a>
+                    </span>
+                    <!-- Code Link -->
+                    <span class="link-block">
+                        <a href="https://github.com/kseto06/Continuum" class="external-link button is-normal is-rounded is-dark">
+                        <span class="icon">
+                            <i class="fab fa-github"></i>
+                        </span>
+                        <span class="teaser" style="font-weight: 400;">Code</span>
+                        </a>
+                    </span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <section class="section">
+            <div class="container is-max-desktop">
+            <!-- Abstract -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Abstract</h2>
+                    <div class="content has-text-justified">
+                        Deep reinforcement learning has proven to be a powerful approach in machine learning, where agents can learn to solve problems in environments through the application of neural networks. 
+                        In particular, reinforcement learning has been applied to solve physics-based environments, which is prevalent in systems with non-linear dynamics.
+                        However, standard neural networks struggle to tackle physics problems because neural networks do not have any concept of the underlying math and physics of the system. 
+                        Time dependencies in physics problems are not represented in the neural network, and in Deep RL, neural networks will learn trajectories of solutions based on probabilities of best actions versus the actual dynamics of the system. 
+                        Neural Ordinary Differential Equations (NODEs) represent and learn the dynamics of the system by defining the fundamental differential equation as a neural network that learns the solution to an ODE, making it a powerful architecture for physics-informed machine learning. 
+                        <br><br>
+                        In this work, we propose <b>Continuum</b>, a deep RL framework and neural network architecture for physics-informed reinforcement learning. 
+                        The architecture combines NODEs, Autoencoders, and model-free RL algorithms, where the latent space of the Autoencoder is represented by a time-dependent NODE that learns the continuous-time dynamics of the environment. 
+                        In this architecture, we aim to build a neural network that has stronger physics alignment and interpretability, thus encouraging policies to make predictions based on structured latent representations of the learned system dynamics that promote stability and performance.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container is-max-desktop">
+            <!-- Approach/Architecture -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Approach</h2>
+
+                    <img src="./assets/architecture.png">
+                    <br><br>
+                    <div class="content has-text-justified">
+                        Continuum uses a proposed model architecture that combines Neural ODEs, Autoencoders, and the PPO on-policy algorithm. 
+                        The observation space inputs are passed into an encoder layer for enhancing feature representation and dimensionality reduction for efficient and faster learning. 
+                        The latent space is then represented by the Neural ODE, which receives the reduced observation input and passed into the NODE for learning and representing dynamics. 
+                        The output of the NODE is then increased back in dimensionality via the decoder layer and passed into the actor and critic heads for the Actor-Critic network architecture used in PPO. 
+                        The PPO algorithm is then implemented to optimize the model.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container is-max-desktop">
+            <!-- Approach/Architecture -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Results</h2>
+                    <div class="content has-text-justified">
+                        We train models on a variety of Gym and MuJoCo environments on our proposed architecture. 
+                        Some successful results are shown below, where agents learn to find solutions in these environments. 
+                        We achieved learning curve results that were either comparable to standard PPO or <b>2 to 3 times</b> better in performance.                                                                                                                 
+                    </div>
+                </div>
+            </div>
+
+        <section class="hero is-light is-small">
+            <div class="hero-body">
+                <div class="container">
+                <div id="results-carousel" class="carousel results-carousel">
+                    <div class="item">
+                        <video poster="" id="walk" autoplay controls muted loop playsinline width="100%">
+                        <source src="assets/humanoid_walk.mp4"
+                                type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="item">
+                        <video poster="" id="standup" autoplay controls muted loop playsinline width="100%">
+                        <source src="assets/humanoid_standup.mp4"
+                                type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="item">
+                        <video poster="" id="half-cheetah" autoplay controls muted loop playsinline width="100%">
+                        <source src="assets/half_cheetah.mp4"
+                                type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="item">
+                        <video poster="" id="ant" autoplay controls muted loop playsinline width="100%">
+                        <source src="assets/ant.mp4"
+                                type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </section>
+        </section>
+
+        <section class="section">
+            <div class="container is-max-desktop">
+            <!-- Approach/Architecture -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Conclusion</h2>
+                    <div class="content has-text-justified">
+                        ~~ add conclusion here once it's done ~~                                                                                                             
+                    </div>
+                </div>
+            </div>
+        </section>        
+    </section>
+</body>
+
+</html>
