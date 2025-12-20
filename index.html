@@ -122,7 +122,7 @@
                     <img src="./assets/architecture.png">
                     <br><br>
                     <div class="content has-text-justified">
-                        Continuum uses a proposed model architecture that combines Neural ODEs, Autoencoders, and the PPO on-policy algorithm. 
+                        <b>Continuum</b> uses a proposed model architecture that combines Neural ODEs, Autoencoders, and the PPO on-policy algorithm. 
                         The observation space inputs are passed into an encoder layer for enhancing feature representation and dimensionality reduction for efficient and faster learning. 
                         The latent space is then represented by the Neural ODE, which receives the reduced observation input and passed into the NODE for learning and representing dynamics. 
                         The output of the NODE is then increased back in dimensionality via the decoder layer and passed into the actor and critic heads for the Actor-Critic network architecture used in PPO. 
@@ -187,7 +187,13 @@
                 <div class="column is-four-fifths">
                     <h2 class="title is-3">Conclusion</h2>
                     <div class="content has-text-justified">
-                        ~~ add conclusion here once it's done ~~                                                                                                             
+                        <b>Continuum</b> advances deep reinforcement learning in stochastic physics-based environments by integrating model-free algorithms such as PPO, Neural ODEs, and Autoencoders to
+                        effectively learn continuous-time feature dynamics for effective and stable learning, creating a framework that excels at physics-informed reinforcement learning. 
+                        Across Gymnasium and MuJoCo benchmarks, we find that the model architecture proposed by <b>Continuum</b> (using PPO and the RK4 solver) either performs comparable to or outperforms standard PPO and deep learning architectures in model performance and stability in many environments. 
+                        In environments that especially involve continuous dynamics in mechanics, such as HalfCheetah-v5 or Humanoid-v5, <b>Continuum</b> outperforms standard PPO by approximately 300% and 600%, respectively. 
+                        The novel architecture introduced in this project has been shown to enable better learning performance and stability, and opens opportunities for further research and advancements in related fields such as model-free reinforcement learning and imitation learning.
+                        Future efforts will focus on exploring opportunities to apply this architecture in to these related domains, 
+                        as well as investigating model interpretability in our current architecture to gain further insights on the latent representations of physics and dynamics in the network arhictecture. Such insights may inspire the design of more effective neural network architectures in future work and research.
                     </div>
                 </div>
             </div>
