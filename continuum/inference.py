@@ -52,8 +52,8 @@ For the `vec_path` and `model_path` variables, load ONLY either NODE files or PP
 
 Currently, this file defaults to the pretrained NODE model on the Humanoid-v5 environment.
 '''
-vec_path = "model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.pkl"
-model_path = "model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.zip"
+vec_path = "model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.pkl"
+model_path = "model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.zip"
 
 vec_env = VecNormalize.load(vec_path, venv)
 vec_env.training = False
