@@ -14,16 +14,16 @@ Running the code requires the file name, solver parameter (String), total_timest
 if __name__ == "__main__":
     '''
     This file trains in an arbituary Gym/Mujoco env. 
-    - For training, use render_mode=None to save computational resources
-    - For inference, use render_mode=human to visualize the env
+        - For training, use render_mode=None to save computational resources
+        - For inference, use render_mode=human to visualize the env
     '''
     
     '''
     Set the environment name here.
     Possible ClassicControl/Box2D/Mujoco envs to use that are physics-based are:
-    - Classic Control: CartPole-v1, MountainCar-v0/MountainCarContinuous-v0, Acrobot-v1, Pendulum-v1, LunarLander-v2
-    - Box2D: LunarLander-v3, BipedalWalker-v3
-    - Mujoco: HalfCheetah-v5, Hopper-v5, Walker2d-v5, Ant-v5, Humanoid-v5, HumanoidStandup-v5, Swimmer-v5, Reacher-v5, InvertedPendulum-v5, InvertedDoublePendulum-v5
+        - Classic Control: CartPole-v1, MountainCar-v0/MountainCarContinuous-v0, Acrobot-v1, Pendulum-v1, LunarLander-v2
+        - Box2D: LunarLander-v3, BipedalWalker-v3
+        - Mujoco: HalfCheetah-v5, Hopper-v5, Walker2d-v5, Ant-v5, Humanoid-v5, HumanoidStandup-v5, Swimmer-v5, Reacher-v5, InvertedPendulum-v5, InvertedDoublePendulum-v5
     '''
     env_name = "CartPole-v1"
     env = gym.make(env_name)

@@ -56,7 +56,10 @@ git clone https://github.com/kseto06/Continuum
 
 Follow the instructions in `main.py` for setting up training:
 
-1. Set the Gym/MuJoCo environment name out of the listed environments:
+1. Set the Gym/MuJoCo environment name out of the listed environments. Possible ClassicControl/Box2D/Mujoco envs to use that are physics-based are:
+    - Classic Control: CartPole-v1, MountainCar-v0/MountainCarContinuous-v0, Acrobot-v1, Pendulum-v1, LunarLander-v2
+    - Box2D: LunarLander-v3, BipedalWalker-v3
+    - Mujoco: HalfCheetah-v5, Hopper-v5, Walker2d-v5, Ant-v5, Humanoid-v5, HumanoidStandup-v5, Swimmer-v5, Reacher-v5, InvertedPendulum-v5, InvertedDoublePendulum-v5
     ```python
     env_name = "<env_name>"
     ```
@@ -99,11 +102,32 @@ Follow the instructions in `main.py` for setting up training:
 ### Step 4: Run Inference
 
 In `inference.py`:
-1. Set the Gym/MuJoCo environment name to run inference on:
+1. Set the Gym/MuJoCo environment name to run inference on. We provide pretrained models on our NODE architecture and on standard PPO for `Humanoid-v5`, `HumanoidStandup-v5`, `Ant-v5`, and `HalfCheetah-v5`. 
     ```python
     env_name = "<env_name>"
     ```
-2. Set the `.pkl` path and the model's path `.zip` to load the model:
+2. Set the `.pkl` path and the model's path `.zip` to load the model. The file paths to our provided pretrained models are given below. For the `vec_path` and `model_path` variables, load ONLY either NODE files or PPO files:
+- **Humanoid-v5**:
+    - NODE `.pkl` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.zip`
+- **HumanoidStandup-v5**:
+    - NODE `.pkl` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_PPO_Pretrained.zip`
+- **Ant-v5**: 
+    - NODE `.pkl` Path: `model/rl-model/Ant-v5/Ant-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/Ant-v5/Ant-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/Ant-v5/Ant-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/Ant-v5/Ant-v5_PPO_Pretrained.zip`
+- **HalfCheetah-v5**:
+    - NODE `.pkl` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_PPO_Pretrained.zip`
+
     ```python
     vec_path = "<path_to_pkl>"
     model_path = "<path_to_model>"

@@ -9,7 +9,14 @@ Running the code requires only the file name, however ensure that the model path
 '''
 
 '''
-Set the Gym/MuJoCo environment name to run inference on:
+Set the Gym/MuJoCo environment name to run inference on.
+We provide pretrained models on our NODE architecture and on standard PPO for:
+- `Humanoid-v5`
+- `HumanoidStandup-v5`
+- `Ant-v5`
+- `HalfCheetah-v5`
+
+Currently, this file defaults to the `Humanoid-v5` environment.
 '''
 env_name = "Humanoid-v5"
 
@@ -19,11 +26,34 @@ def make_env():
 venv = DummyVecEnv([make_env])
 
 '''
-Set the `.pkl` path and the model's path `.zip` to load the model:
-The default paths below are set to the pretrained Humanoid-v5 model files provided. 
+Set the `.pkl` path and the model's path `.zip` to load the model. 
+The file paths to our provided pretrained models are given below.
+For the `vec_path` and `model_path` variables, load ONLY either NODE files or PPO files:
+- Humanoid-v5:
+    - NODE `.pkl` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.zip`
+- HumanoidStandup-v5:
+    - NODE `.pkl` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/HumanoidStandup-v5/HumanoidStandup-v5_PPO_Pretrained.zip`
+- Ant-v5: 
+    - NODE `.pkl` Path: `model/rl-model/Ant-v5/Ant-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/Ant-v5/Ant-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/Ant-v5/Ant-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/Ant-v5/Ant-v5_PPO_Pretrained.zip`
+- HalfCheetah-v5:
+    - NODE `.pkl` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_NODE_Pretrained.pkl`
+    - NODE `.zip` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_NODE_Pretrained.zip`
+    - PPO `.pkl` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_PPO_Pretrained.pkl`
+    - PPO `.zip` Path: `model/rl-model/HalfCheetah-v5/HalfCheetah-v5_PPO_Pretrained.zip`
+
+Currently, this file defaults to the pretrained NODE model on the Humanoid-v5 environment.
 '''
-vec_path = "model/rl-model/humanoid-vectorized/NODE-PPO_rk4_Humanoid-v5_checkpoint_15007744_steps_vecnormalize.pkl"
-model_path = "model/rl-model/humanoid-vectorized/NODE-PPO_rk4_Humanoid-v5_checkpoint_15007744_steps.zip"
+vec_path = "model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.pkl"
+model_path = "model/rl-model/Humanoid-v5/Humanoid-v5_PPO_Pretrained.zip"
 
 vec_env = VecNormalize.load(vec_path, venv)
 vec_env.training = False
