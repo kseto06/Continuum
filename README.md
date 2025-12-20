@@ -1,5 +1,5 @@
 # Continuum: A Dimension-Agnostic Neural ODE Deep Reinforcement Learning Framework for Physics-Based Environments
-[[Project Page]](https://kseto06.github.io/Continuum/) | [[Paper]]()
+[[Project Page]](https://kseto06.github.io/Continuum/) | [[Paper]](website/public/assets/paper.pdf)
 
 <p align="center">
     <img src="website/public/assets/architecture.png" alt="architecture">
